@@ -8,7 +8,7 @@ Supports: Algerian Darija + French code-switching
 import torch
 import librosa
 from pathlib import Path
-from cog import BasePredictor, Input
+from cog import BasePredictor, Input, Path as CogPath
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
 
@@ -33,7 +33,7 @@ class Predictor(BasePredictor):
 
     def predict(
         self,
-        audio: Path = Input(
+        audio: CogPath = Input(
             description="Audio file (WAV, MP3, WebM, FLAC, etc.)"
         ),
     ) -> str:
