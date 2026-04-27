@@ -1,0 +1,25 @@
+name: Push Whisper Algerian to Replicate
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: 'Replicate model name (e.g., abd-far/whisper-algerian)'
+        required: true
+        type: string
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Push to Replicate
+        uses: replicate/setup-cog@v1
+        with:
+          token: ${{ secrets.REPLICATE_CLI_AUTH_TOKEN }}
+
+      - name: Run cog push
+        run: |
+          cog push ${{ github.event.inputs.model_name }}
