@@ -1,4 +1,4 @@
-name: Push Whisper Algerian to Replicate
+name: Push to Replicate
 
 on:
   workflow_dispatch:
@@ -6,20 +6,25 @@ on:
       model_name:
         description: 'Replicate model name (e.g., abd-far/whisper-algerian)'
         required: true
-        type: string
 
 jobs:
-  push:
+  push_to_replicate:
+    name: Push to Replicate
     runs-on: ubuntu-latest
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          docker-images: false
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Push to Replicate
-        uses: replicate/setup-cog@v1
+      - name: Setup Cog
+        uses: replicate/setup-cog@v2
         with:
           token: ${{ secrets.REPLICATE_CLI_AUTH_TOKEN }}
 
-      - name: Run cog push
-        run: |
-          cog push ${{ github.event.inputs.model_name }}
+      - name: Push to Replicate
+        run: cog push r8.im/${{ inputs.model_name }}
