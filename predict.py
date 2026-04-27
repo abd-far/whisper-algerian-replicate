@@ -20,7 +20,7 @@ class Predictor(BasePredictor):
         # Load the fine-tuned Whisper Algerian model
         self.model = WhisperForConditionalGeneration.from_pretrained(
             "MohammedNasri/whisper-algerian-dialect",
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            torch_dtype=torch.float32,
             device_map=device,
         )
 
