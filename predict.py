@@ -1,35 +1,31 @@
 """
-Predictor for Whisper Algerian Dialect model on Replicate
-Model: MohammedNasri/whisper-algerian-dialect
-WER: ~23% on Algerian Arabic dialect
-Supports: Algerian Darija + French code-switching
+Predictor for Whisper Algerian Dialect on Replicate
+Model: MohammedNasri/whisper-algerian-dialect (Whisper-tiny fine-tuned)
+
+Uses HuggingFace pipeline with chunk_length_s=30 + stride to handle:
+- Audio decoding (WebM/Opus, WAV, MP3, FLAC) via ffmpeg backend
+- Long audio (> 30s) via automatic chunking with overlap
+- Language forcing (ar) and bounded token generation
 """
 
 import torch
-import librosa
-from pathlib import Path
 from cog import BasePredictor, Input, Path as CogPath
-from transformers import WhisperForConditionalGeneration, WhisperProcessor
+from transformers import pipeline
 
 
 class Predictor(BasePredictor):
     def setup(self):
-        """Load model and processor once at startup"""
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        """Load the ASR pipeline once at startup."""
+        device = 0 if torch.cuda.is_available() else -1
 
-        # Load the fine-tuned Whisper Algerian model
-        self.model = WhisperForConditionalGeneration.from_pretrained(
-            "MohammedNasri/whisper-algerian-dialect",
+        self.pipe = pipeline(
+            task="automatic-speech-recognition",
+            model="MohammedNasri/whisper-algerian-dialect",
             torch_dtype=torch.float32,
-            device_map=device,
+            device=device,
+            chunk_length_s=30,
+            stride_length_s=5,
         )
-
-        # Load the processor (handles audio preprocessing)
-        self.processor = WhisperProcessor.from_pretrained(
-            "MohammedNasri/whisper-algerian-dialect"
-        )
-
-        self.model.eval()
 
     def predict(
         self,
@@ -38,44 +34,19 @@ class Predictor(BasePredictor):
         ),
     ) -> str:
         """
-        Transcribe Algerian Arabic dialect audio to text.
+        Transcribe Algerian Arabic dialect audio (with French code-switching).
 
-        Supports:
-        - Pure Algerian Darija
-        - Algerian Darija + French code-switching
-        - Medical consultation audio
-
-        Args:
-            audio: Audio file path
-
-        Returns:
-            Transcribed text in Algerian Arabic/French mix
+        The pipeline handles audio decoding, 30s chunking with 5s stride
+        overlap, and decodes the merged transcription.
         """
-        # Load audio at 16kHz (required by Whisper)
-        audio_array, sampling_rate = librosa.load(
+        result = self.pipe(
             str(audio),
-            sr=16000,
+            return_timestamps=False,
+            generate_kwargs={
+                "language": "ar",
+                "task": "transcribe",
+                "max_new_tokens": 440,
+            },
         )
 
-        # Process audio for the model
-        inputs = self.processor(
-            audio_array,
-            sampling_rate=16000,
-            return_tensors="pt",
-        )
-
-        # Move inputs to same device as model
-        device = next(self.model.parameters()).device
-        inputs = {k: v.to(device) for k, v in inputs.items()}
-
-        # Generate transcription
-        with torch.no_grad():
-            predicted_ids = self.model.generate(inputs["input_features"])
-
-        # Decode to text
-        transcription = self.processor.batch_decode(
-            predicted_ids,
-            skip_special_tokens=True,
-        )[0]
-
-        return transcription.strip()
+        return result["text"].strip()
